@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>MattsMethMaps — Nova Scotia</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- MapTiler SDK (loaded with async defer) -->
+  <link rel="stylesheet" href="https://cdn.maptiler.com/maptiler-sdk-js/v2.3.1/maptiler-sdk.css" />
+  <script src="https://cdn.maptiler.com/maptiler-sdk-js/v2.3.1/maptiler-sdk.umd.js" defer></script>
+
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #000;
+      font-family: Segoe UI, Roboto, Arial, sans-serif;
+    }
+
+    #map, #menu {
+      position: absolute;
+      inset: 0;
+    }
+
+    #map {
+      display: none;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+    }
+
+    #menu {
+      background: url('map_matt.png') center/cover no-repeat;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    /* SHIFT Button */
+    @keyframes glowPulse {
+      0%, 100% { box-shadow: 0 0 10px #ff3b3b, 0 0 20px #ff3b3b; }
+      50% { box-shadow: 0 0 25px #6cf, 0 0 50px #6cf; }
+    }
+    .shift-btn {
+      background: #ff3b3b;
+      border: none;
+      color: white;
+      font-size: 24px;
+      padding: 14px 34px;
+      border-radius: 14px;
+      margin-bottom: 60px;
+      cursor: pointer;
+      animation: glowPulse 3s infinite ease-in-out;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* Skull image (top right corner) */
+    #skullTopRight {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 50px;
+      cursor: pointer;
+    }
+
+    /* Music player */
+    #musicControls {
+      position: absolute;
+      top: 80px;
+      right: 10px;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      border-radius: 12px;
+      color: white;
+      font-size: 14px;
+      display: none;
+      width: 160px;
+    }
+
+    #musicControls button {
+      background: #222;
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      margin: 4px;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 40px;
+    }
+
+    /* View switch buttons */
+    #viewButtons {
+      position: absolute;
+      top: 20px;
+      left: 10px;
+      z-index: 12;
+      display: none;
+    }
+
+    #viewButtons button {
+      background: #222;
+      color: white;
+      border: 1px solid #555;
+      padding: 6px 10px;
+      margin-right: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    #viewButtons button:hover {
+      background: #00ccff;
+      color: black;
+    }
+
+    /* Flash effect */
+    .flash {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle, rgba(100, 180, 255, 0.7) 0%, rgba(0, 0, 0, 0) 70%);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 999;
+      transition: opacity 0.18s ease-out;
+    }
+
+    /* Animation */
+    @keyframes wheelspin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .spin { animation: wheelspin 0.4s linear; }
+  </style>
+</head>
+<body>
+
+  <!-- Skull top-right -->
+  <img id="skullTopRight" src="skull.png" alt="skull" />
+
+  <!-- Main menu -->
+  <div id="menu">
+    <button class="shift-btn" id="shiftBtn">SHIFT</button>
+  </div>
+
+  <!-- Map -->
+  <div id="map"></div>
+
+  <!-- View buttons -->
+  <div id="viewButtons" aria-hidden="true">
+    <button data-style="streets-v2">Streets</button>
+    <button data-style="satellite">Satellite</button>
+    <button data-style="topo-v2">Topo</button>
+    <button data-style="darkmatter">Dark</button>
+    <button data-style="light">Light</button>
+  </div>
+
+  <!-- Music controls -->
+  <div id="musicControls" aria-hidden="true"></div>
+
+  <!-- Flash effect -->
+  <div class="flash" id="flash"></div>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+
+  const MAPTILER_KEY = "fzqipGZOXzrilXp9QvKC";
+  maptilersdk.config.apiKey = MAPTILER_KEY;
+
+  // Initialize map
+  const map = new maptilersdk.Map({
+    container: 'map',
+    style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`,
+    center: [-63.288, 45.715],
+    zoom: 12
+  });
+
+  // Add "Tatamagouche" label to the map
+  map.on("load", () => {
+    map.addSource('tatamagouchePoint', {
+      type: 'geojson',
+      data: {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [-63.288, 45.715] }
+      }
+    });
+
+    map.addLayer({
+      id: 'tatamagoucheText',
+      type: 'symbol',
+      source: 'tatamagouchePoint',
+      layout: {
+        'text-field': 'Tatamagouche',
+        'text-size': 20,
+        'text-offset': [0, -1.2],
+        'text-anchor': 'bottom'
+      },
+      paint: {
+        'text-color': '#00aaff'
+      }
+    });
+
+    map.addLayer({
+      id: 'tatamagoucheDot',
+      type: 'circle',
+      source: 'tatamagouchePoint',
+      paint: {
+        'circle-radius': 6,
+        'circle-color': '#00aaff'
+      }
+    });
+
+    window.addEventListener('resize', () => map.resize());
+  });
+
+  // Add bike pointer
+  const bikeEl = document.createElement('img');
+  bikeEl.src = 'pointer.png';
+  bikeEl.style.width = '50px';
+  bikeEl.style.transformOrigin = 'center center';
+
+  let bikeMarker = new maptilersdk.Marker({ element: bikeEl })
+    .setLngLat([-63.288, 45.715])
+    .addTo(map);
+
+  map.on("click", (e) => {
+    const {lng, lat} = e.lngLat;
+    bikeEl.classList.remove("spin");
+    void bikeEl.offsetWidth;
+    bikeEl.classList.add("spin");
+    bikeMarker.setLngLat([lng, lat]);
+
+    map.flyTo({
+      center: [lng, lat],
+      zoom: 16,
+      speed: 0.9
+    });
+  });
+
+  // Play shift sound + flash effect
+  const shiftSound = new Audio("shift.mp3");
+
+  function playShift(callback){
+    shiftSound.currentTime = 0;
+    shiftSound.play().catch(()=>{}); 
+    setTimeout(()=> callback(), 300); 
+  }
+
+  // Flash effect
+  const flashEl = document.getElementById("flash");
+  function doFlash(){
+    flashEl.style.opacity = "1";
+    setTimeout(()=> flashEl.style.opacity = "0", 150);
+  }
+  setInterval(doFlash, 10000);
+
+  // Music controls with updated playlist
+  const tracks = [
+    "map_quest_matt.mp3",
+    "pedal_to_the_junkyard.mp3",
+    "copper_skies.mp3",
+    "matt_on_the_map.mp3",
+    "gone_in_a_flash.mp3",
+    "roll_my_pipe.mp3",  // Added new song
+    "copper_king.mp3",   // Added new song
+    "mattys_maps.mp3",   // Added new song
+    "out_all_night.mp3"  // Added new song
+  ];
+  let current = 0;
+  const audio = new Audio(tracks[current]);
+  audio.preload = "auto";
+
+  const controls = document.getElementById("musicControls");
+  controls.innerHTML = `
+    <div style="margin-bottom:6px">🎵 <span id="songName"></span></div>
+    <button id="prev">⏮️</button>
+    <button id="playpause">⏯️</button>
+    <button id="next">⏭️</button>
+  `;
+
+  const prevBtn = document.getElementById("prev");
+  const playpauseBtn = document.getElementById("playpause");
+  const nextBtn = document.getElementById("next");
+  const songName = document.getElementById("songName");
+
+  function formatName(n){ return n.replace(".mp3","").replace(/_/g," "); }
+
+  function playCurrent(){
+    audio.src = tracks[current];
+    songName.textContent = formatName(tracks[current]);
+    audio.play().catch(()=>{}); 
+    playpauseBtn.textContent = "⏸️";
+  }
+
+  prevBtn.onclick = () => { current=(current-1+tracks.length)%tracks.length; playCurrent(); };
+  nextBtn.onclick = () => { current=(current+1)%tracks.length; playCurrent(); };
+  playpauseBtn.onclick = () => {
+    if(audio.paused){audio.play(); playpauseBtn.textContent="⏸️";} 
+    else {audio.pause(); playpauseBtn.textContent="▶️";} 
+  };
+
+  // SHIFT Button functionality
+  const shiftBtn = document.getElementById("shiftBtn");
+  shiftBtn.onclick = () => {
+    playShift(()=> {
+      document.getElementById("menu").style.display = "none";
+      const mapEl = document.getElementById("map");
+      mapEl.style.display = "block";
+      controls.style.display = "block";
+      document.getElementById("viewButtons").style.display = "block";
+      setTimeout(() => mapEl.style.opacity = "1", 60);
+      playCurrent();
+    });
+  };
+
+  // Skull (top-right) functionality: change map style on click
+  const skullImg = document.getElementById("skullTopRight");
+  skullImg.onclick = () => {
+    playShift(() => {
+      map.setStyle(`https://api.maptiler.com/maps/darkmatter/style.json?key=${MAPTILER_KEY}`);
+    });
+  };
+
+  // View buttons functionality
+  document.querySelectorAll("#viewButtons button").forEach(btn => {
+    btn.onclick = () => {
+      playShift(() => {
+        const styleID = btn.dataset.style;
+        map.setStyle(`https://api.maptiler.com/maps/${styleID}/style.json?key=${MAPTILER_KEY}`);
+      });
+    };
+  });
+
+});
+</script>
+
+</body>
+</html>
